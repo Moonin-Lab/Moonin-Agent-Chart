@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moonin Agent Chart</title>
+    <meta name="description" content="Repositorio público de Helm charts de Moonin." />
+    <style>
+      :root {
+        --bg: #0b1118;
+        --panel: #132131;
+        --border: #24303d;
+        --text: #eaf0f6;
+        --muted: #9fb3cc;
+        --cyan: #22d3ee;
+      }
+      * { box-sizing: border-box; margin: 0; }
+      body {
+        background: radial-gradient(circle at 85% 0%, rgba(56, 189, 248, 0.12), transparent 28rem), var(--bg);
+        color: var(--text);
+        font-family: -apple-system, Inter, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        min-height: 100vh;
+      }
+      main { max-width: 44rem; margin: 0 auto; padding: 4rem 1.5rem 3rem; }
+      header { margin-bottom: 1.6rem; }
+      header img { height: 2.4rem; width: auto; }
+      h1 { font-size: 2.2rem; line-height: 1.1; margin-bottom: 0.6rem; font-weight: 800; }
+      p.lead { color: var(--muted); font-size: 1.05rem; margin-bottom: 2rem; }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 1.4rem 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .card h2 {
+        color: var(--cyan);
+        font-size: 0.75rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        margin-bottom: 0.6rem;
+      }
+      pre {
+        background: #0e1d33;
+        border: 1px solid #22375a;
+        border-radius: 0.7rem;
+        color: #dbe6f3;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.86rem;
+        overflow-x: auto;
+        padding: 1rem;
+        white-space: pre;
+      }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 0.35rem 0.5rem 0.35rem 0; color: var(--text); }
+      td:first-child { color: var(--muted); width: 42%; }
+      a { color: var(--cyan); }
+      footer { color: var(--muted); font-size: 0.85rem; margin-top: 2rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header><img src="moonin-wordmark-cyan.svg" alt="Moonin" /></header>
+
+      <h1>Moonin Agent Chart</h1>
+      <p class="lead">
+        Repositorio p&uacute;blico de Helm para instalar los agentes de Moonin en tus cl&uacute;sters de Kubernetes.
+        Agrega este repositorio con <code>helm repo add</code> o instala el chart desde OCI en GHCR.
+      </p>
+
+      <section class="card">
+        <h2>Instalaci&oacute;n</h2>
+        <pre>helm repo add moonin-agent https://Moonin-Lab.github.io/Moonin-Agent-Chart
+helm repo update</pre>
+      </section>
+
+      <section class="card">
+        <h2>Contenido del repositorio</h2>
+        <table>
+          <tr><td>&Iacute;ndice del repositorio</td><td><a href="index.yaml">index.yaml</a></td></tr>
+          <tr><td>moonin-agent-0.0.1.tgz</td><td><a href="moonin-agent-0.0.1.tgz">Descargar chart</a></td></tr>
+          <tr><td>C&oacute;digo fuente</td><td><a href="https://github.com/Moonin-Lab/Moonin-Agent-Chart" rel="noopener noreferrer">github.com/Moonin-Lab/Moonin-Agent-Chart</a></td></tr>
+        </table>
+      </section>
+
+      <footer>&copy; Moonin Labs</footer>
+    </main>
+  </body>
+</html>
