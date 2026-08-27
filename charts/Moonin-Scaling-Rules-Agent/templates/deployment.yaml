@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+{{- $image := .Values.image | default dict }}
+{{- $images := .Values.images | default dict }}
+{{- $scalingRulesImage := $images.scalingRulesAgent | default dict }}
+{{- $imageRepository := default (default "nginx" $image.repository) $scalingRulesImage.repository }}
+{{- $imageTag := default (default .Chart.AppVersion $image.tag) $scalingRulesImage.tag }}
+{{- $imagePullPolicy := default (default "IfNotPresent" $image.pullPolicy) $scalingRulesImage.pullPolicy }}
+{{- $env := .Values.env | default dict }}
+{{- $global := .Values.global | default dict }}
+{{- $credentialsSecretName := default "arguz-credentials" $global.credentialsSecretName }}
+metadata:
+  name: {{ include "Scaling-Rules-Agent.fullname" . }}
+  labels:
+    {{- include "Scaling-Rules-Agent.labels" . | nindent 4 }}
+spec:
+  replicas: {{ default 1 .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "Scaling-Rules-Agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "Scaling-Rules-Agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "Scaling-Rules-Agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "Scaling-Rules-Agent.name" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ $imageRepository }}:{{ $imageTag }}"
+          imagePullPolicy: {{ $imagePullPolicy }}
+          env:
+            - name: PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: PROJECT_ID
+            - name: CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_ID
+            - name: CLUSTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_TOKEN
+            - name: API_URL
+              value: {{ default "" $env.API_URL | quote }}
+            - name: LOG_LEVEL
+              value: {{ default "info" $env.LOG_LEVEL | quote }}
+            {{- if ne (default "" $env.IGNORE_RESOURCES) "" }}
+            - name: IGNORE_RESOURCES
+              value: {{ $env.IGNORE_RESOURCES | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

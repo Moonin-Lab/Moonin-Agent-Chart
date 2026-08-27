@@ -1,0 +1,252 @@
+
+
+global:
+  credentialsSecretName: "moonin-credentials"
+  clusterCredentials:
+    projectId: "<your-project-id>"
+    clusterId: "<your-cluster-id>"
+    clusterToken: "<your-cluster-token>"
+
+Moonin-Discovery-Agent:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/moonin-lab/moonin-discovery-agent
+    pullPolicy: IfNotPresent
+    tag: "v1.0.0"
+    # digest: "sha256:..." # When set, renders repository@digest and takes precedence over tag.
+
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+    name: ""
+
+  podAnnotations: {}
+  podLabels: {}
+
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  env:
+    API_URL: "https://api-discover.moonin.app"
+    HEALTH_ADDR: "0.0.0.0:8080"
+
+  # Discovery-Agent upgrades this Helm release through the Helm SDK by default.
+  # Set enabled: false to opt out for a specific installation/cluster. Catalog
+  # assignment supplies the desired release; it cannot bypass a local opt-out.
+  selfUpgrade:
+    enabled: true
+    pollInterval: "5m"
+    chartRef: "oci://ghcr.io/moonin-lab/moonin-agent"
+    timeout: "5m"
+    lock:
+      name: ""
+      namespace: ""
+    # Applied only when self-upgrade is enabled. Keep the pre-stop delay below
+    # the grace period so the old leader can remain available during handoff.
+    rollout:
+      terminationGracePeriodSeconds: 120
+      preStopDelaySeconds: 30
+
+  config:
+    configMapName: ""
+    mountPath: "/"
+    fileName: "config.yaml"
+    filePath: "/config.yaml"
+    content: |
+      log_level: info
+      ignore_namespaces:
+        - kube-system
+      ignore_resources:
+        - job/*
+
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  # The distroless agent serves health checks at /healthz on the named health port.
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: health
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # Additional volumes on the output Deployment definition.
+  volumes: []
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+  # Additional volumeMounts on the output Deployment definition.
+  volumeMounts: []
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+Moonin-Scaling-Rules-Agent:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/moonin-lab/moonin-scaling-rules-agent
+    pullPolicy: IfNotPresent
+    tag: "v1.0.0"
+
+  imagePullSecrets: []
+  nameOverride: ""
+  fullnameOverride: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+    name: ""
+
+  podAnnotations: {}
+  podLabels: {}
+
+  podSecurityContext: {}
+
+  securityContext: {}
+
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  env:
+    API_URL: "https://api-scaling-rules.moonin.app"
+    LOG_LEVEL: "info"
+    IGNORE_RESOURCES: ""
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+Moonin-Node-Agent:
+  # The Node Agent observes host processes and network traffic with eBPF.
+  # It is enabled by default and requires a privileged namespace/node policy.
+  enabled: true
+  image:
+    repository: ghcr.io/moonin-lab/moonin-node-agent
+    pullPolicy: IfNotPresent
+    tag: "v1.0.0"
+    # digest: "sha256:..."
+  imagePullSecrets: []
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+    name: ""
+
+  api:
+    baseURL: "https://ingestion-api.moonin.app/"
+
+  daemonset:
+    maxUnavailable: 1
+    priorityClassName: ""
+    nodeSelector:
+      kubernetes.io/os: linux
+    tolerations: []
+    # Workers only by default. Set true only after approving control-plane capture.
+    scheduleControlPlane: false
+
+  priorityClass:
+    create: true
+    name: ""
+    value: 1000000
+    description: "Arguz Node Agent"
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+
+  hostPaths:
+    proc: /proc
+    cgroup: /sys/fs/cgroup
+    kubeletPods: /var/lib/kubelet/pods
+    modules: /lib/modules
+    bpf: /sys/fs/bpf
+    debug: /sys/kernel/debug
+    tracing: /sys/kernel/tracing
+    varLog: /var/log
+    runContainerd: /run/containerd
+    containerd: /var/lib/containerd
+    containerdTask: /run/containerd/io.containerd.runtime.v2.task
+
+  traceSpool:
+    mountPath: /var/lib/moonin-agent/traces
+    sizeLimit: 320Mi
+    maxBytes: 268435456
+    minAgeSeconds: 60
+
+  config:
+    logEvents: false
+    aggregationWindowSeconds: 180
+    sendIntervalSeconds: 60
+    eventsHttpTimeoutSeconds: 30
+    eventHttpParallelism: 4
+    eventChannelCap: 4096
+    monitorLoopback: true
+    interfaceInclude: ""
+    interfaceExclude: ""
+    enableDbQueryUprobe: true
+    enableSslUprobe: true
+    enablePythonGrpc: true
+    enableRuntimeCoverage: true
+    enableNetConn: true
+    podCacheScopeNode: false
+    # Container log uploading is intentionally not configured in this chart.
+
+  podAnnotations: {}
+  podLabels: {}

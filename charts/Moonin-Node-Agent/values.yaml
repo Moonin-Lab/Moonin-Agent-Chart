@@ -1,0 +1,80 @@
+enabled: true
+
+image:
+  repository: ghcr.io/moonin-labs/moonin-node-agent
+  pullPolicy: IfNotPresent
+  tag: "v1.0.0"
+  digest: ""
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+api:
+  baseURL: "https://ingestion-api.moonin.app/"
+
+daemonset:
+  maxUnavailable: 1
+  priorityClassName: ""
+  nodeSelector:
+    kubernetes.io/os: linux
+  tolerations: []
+  scheduleControlPlane: false
+
+priorityClass:
+  create: true
+  name: ""
+  value: 1000000
+  description: Arguz Node Agent
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+hostPaths:
+  proc: /proc
+  cgroup: /sys/fs/cgroup
+  kubeletPods: /var/lib/kubelet/pods
+  modules: /lib/modules
+  bpf: /sys/fs/bpf
+  debug: /sys/kernel/debug
+  tracing: /sys/kernel/tracing
+  varLog: /var/log
+  runContainerd: /run/containerd
+  containerd: /var/lib/containerd
+  containerdTask: /run/containerd/io.containerd.runtime.v2.task
+
+traceSpool:
+  mountPath: /var/lib/arguz-agent/traces
+  sizeLimit: 320Mi
+  maxBytes: 268435456
+  minAgeSeconds: 60
+
+config:
+  logEvents: false
+  aggregationWindowSeconds: 180
+  sendIntervalSeconds: 60
+  eventsHttpTimeoutSeconds: 30
+  eventHttpParallelism: 4
+  eventChannelCap: 4096
+  monitorLoopback: true
+  interfaceInclude: ""
+  interfaceExclude: ""
+  enableDbQueryUprobe: true
+  enableSslUprobe: true
+  enablePythonGrpc: true
+  enableRuntimeCoverage: true
+  enableNetConn: true
+  podCacheScopeNode: false
+  # Optional Kubernetes DNS domain suffix. When empty, it is autodetected.
+  k8sClusterDomain: ""
+
+podAnnotations: {}
+podLabels: {}

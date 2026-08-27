@@ -1,0 +1,136 @@
+name: Publish Helm Chart to GHCR
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.1
+
+      - name: Lint chart
+        run: helm lint .
+
+      - name: Package chart
+        run: |
+          mkdir -p dist
+          CHART_NAME=$(grep '^name:' Chart.yaml | awk '{print $2}')
+          CHART_VERSION_FILE=$(grep '^version:' Chart.yaml | awk '{print $2}')
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            CHART_VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            CHART_VERSION="$CHART_VERSION_FILE"
+          fi
+          helm package . -d dist --version "$CHART_VERSION"
+          CHART_PACKAGE="dist/${CHART_NAME}-${CHART_VERSION}.tgz"
+          if [ ! -f "$CHART_PACKAGE" ]; then
+            echo "Expected package not found at $CHART_PACKAGE"
+            ls -la dist
+            exit 1
+          fi
+          {
+            echo "CHART_NAME=$CHART_NAME"
+            echo "CHART_VERSION=$CHART_VERSION"
+            echo "CHART_PACKAGE=$CHART_PACKAGE"
+          } >> "$GITHUB_ENV"
+
+      - name: Update README version
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF:-}" == refs/tags/v* ]]; then
+            DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+            git fetch origin "$DEFAULT_BRANCH" --depth=1
+            git checkout -B "$DEFAULT_BRANCH" "origin/$DEFAULT_BRANCH"
+          fi
+          sed -E -i "s/^(Chart version: ).*/\\1${CHART_VERSION}/" README.md
+          sed -E -i "s/(--version )[0-9A-Za-z.+-]+/\\1${CHART_VERSION}/" README.md
+          if ! git diff --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add README.md
+            git commit -m "chore: update chart version in README"
+            git push origin HEAD:"$DEFAULT_BRANCH"
+          fi
+      - name: Checkout gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          fetch-depth: 1
+        continue-on-error: true
+
+      - name: Build Helm repo index
+        run: |
+          set -euo pipefail
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          PAGES_URL="https://${OWNER}.github.io/${REPO}"
+          if [ -d gh-pages ]; then
+            cp gh-pages/*.tgz dist/ 2>/dev/null || true
+            if [ -f gh-pages/index.yaml ]; then
+              cp gh-pages/index.yaml dist/index.yaml
+              helm repo index dist --url "$PAGES_URL" --merge dist/index.yaml
+              exit 0
+            fi
+          fi
+          helm repo index dist --url "$PAGES_URL"
+
+      - name: Login to GHCR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | helm registry login ghcr.io \
+            --username "$GITHUB_ACTOR" \
+            --password-stdin
+
+      - name: Push chart to GHCR
+        run: |
+          set -euo pipefail
+          OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
+          CHART_NAME_LC="${CHART_NAME,,}"
+          echo "Publishing $CHART_PACKAGE"
+          echo "Target: oci://ghcr.io/$OWNER_LC/$CHART_NAME_LC:$CHART_VERSION"
+          helm push "$CHART_PACKAGE" "oci://ghcr.io/$OWNER_LC"
+
+      - name: Publish Helm repo (GitHub Pages)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: dist
+
+      - name: Publish summary
+        run: |
+          OWNER_LC="${GITHUB_REPOSITORY_OWNER,,}"
+          VERSION=$(grep '^version:' Chart.yaml | awk '{print $2}')
+          NAME=$(grep '^name:' Chart.yaml | awk '{print $2}' | tr '[:upper:]' '[:lower:]')
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          {
+            echo "## Helm chart publicado en GHCR"
+            echo ""
+            echo "- Registry: ghcr.io/$OWNER_LC"
+            echo "- Chart: oci://ghcr.io/$OWNER_LC/$NAME"
+            echo "- Version: $VERSION"
+            echo ""
+            echo "## Helm repo (GitHub Pages)"
+            echo ""
+            echo "- Repo: https://${OWNER}.github.io/${REPO}"
+            echo "- Install: helm repo add ${NAME} https://${OWNER}.github.io/${REPO}"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,245 @@
+{{- if .Values.enabled }}
+{{- $global := .Values.global | default dict }}
+{{- $credentialsSecretName := default "arguz-credentials" $global.credentialsSecretName }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "Moonin-Node-Agent.fullname" . }}
+  labels:
+    {{- include "Moonin-Node-Agent.labels" . | nindent 4 }}
+  annotations:
+    {{- include "Moonin-Node-Agent.annotations" . | nindent 4 }}
+spec:
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: {{ .Values.daemonset.maxUnavailable }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "Moonin-Node-Agent.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "Moonin-Node-Agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- include "Moonin-Node-Agent.annotations" . | nindent 8 }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: {{ include "Moonin-Node-Agent.serviceAccountName" . }}
+      {{- if .Values.daemonset.priorityClassName }}
+      priorityClassName: {{ .Values.daemonset.priorityClassName }}
+      {{- else if .Values.priorityClass.create }}
+      priorityClassName: {{ default (printf "%s-priority" (include "Moonin-Node-Agent.fullname" .)) .Values.priorityClass.name }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      nodeSelector:
+        {{- toYaml .Values.daemonset.nodeSelector | nindent 8 }}
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  {{- if not .Values.daemonset.scheduleControlPlane }}
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: DoesNotExist
+                  - key: node-role.kubernetes.io/master
+                    operator: DoesNotExist
+                  {{- end }}
+      {{- with .Values.daemonset.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: perf-paranoid-init
+          image: busybox:1.37.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            seccompProfile:
+              type: Unconfined
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              value="$(cat /host-proc/sys/kernel/perf_event_paranoid)"
+              if [ "$value" -gt -1 ]; then
+                echo -1 > /host-proc/sys/kernel/perf_event_paranoid
+              fi
+          volumeMounts:
+            - name: host-proc
+              mountPath: /host-proc
+      containers:
+        - name: node-agent
+          image: {{ include "Moonin-Node-Agent.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            privileged: true
+            runAsUser: 0
+            allowPrivilegeEscalation: true
+            capabilities:
+              add: ["BPF", "PERFMON", "NET_ADMIN", "NET_RAW", "SYS_ADMIN", "SYS_RESOURCE", "SYS_PTRACE", "DAC_READ_SEARCH", "MAC_ADMIN"]
+            seccompProfile:
+              type: Unconfined
+            appArmorProfile:
+              type: Unconfined
+          env:
+            - name: API_BASE_URL
+              value: {{ .Values.api.baseURL | quote }}
+            - name: CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_ID
+            - name: CLUSTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_TOKEN
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: KUBELET_PODS_DIR
+              value: /var/lib/kubelet/pods
+            {{- if .Values.config.k8sClusterDomain }}
+            - name: K8S_CLUSTER_DOMAIN
+              value: {{ .Values.config.k8sClusterDomain | quote }}
+            {{- end }}
+            - name: TRACE_SPOOL_DIR
+              value: {{ .Values.traceSpool.mountPath | quote }}
+            - name: TRACE_SPOOL_MAX_BYTES
+              value: {{ .Values.traceSpool.maxBytes | quote }}
+            - name: TRACE_SPOOL_MIN_AGE_SECS
+              value: {{ .Values.traceSpool.minAgeSeconds | quote }}
+            - name: LOG_EVENTS
+              value: {{ .Values.config.logEvents | quote }}
+            - name: EVENT_AGG_WINDOW_SECONDS
+              value: {{ .Values.config.aggregationWindowSeconds | quote }}
+            - name: EVENT_SEND_INTERVAL_SECONDS
+              value: {{ .Values.config.sendIntervalSeconds | quote }}
+            - name: EVENTS_HTTP_TIMEOUT_SECONDS
+              value: {{ .Values.config.eventsHttpTimeoutSeconds | quote }}
+            - name: EVENT_HTTP_PARALLELISM
+              value: {{ .Values.config.eventHttpParallelism | quote }}
+            - name: EVENT_CHANNEL_CAP
+              value: {{ .Values.config.eventChannelCap | quote }}
+            - name: MONITOR_LOOPBACK
+              value: {{ .Values.config.monitorLoopback | quote }}
+            - name: EVENT_IFACE_INCLUDE
+              value: {{ .Values.config.interfaceInclude | quote }}
+            - name: EVENT_IFACE_EXCLUDE
+              value: {{ .Values.config.interfaceExclude | quote }}
+            - name: ENABLE_DB_QUERY_UPROBE
+              value: {{ .Values.config.enableDbQueryUprobe | quote }}
+            - name: ENABLE_SSL_UPROBE
+              value: {{ .Values.config.enableSslUprobe | quote }}
+            - name: ENABLE_PYTHON_GRPC
+              value: {{ .Values.config.enablePythonGrpc | quote }}
+            - name: ENABLE_RUNTIME_COVERAGE
+              value: {{ .Values.config.enableRuntimeCoverage | quote }}
+            - name: ENABLE_NET_CONN
+              value: {{ .Values.config.enableNetConn | quote }}
+            - name: PODCACHE_SCOPE_NODE
+              value: {{ .Values.config.podCacheScopeNode | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: host-proc
+              mountPath: /proc
+              readOnly: true
+            - name: host-cgroup
+              mountPath: /sys/fs/cgroup
+              readOnly: true
+            - name: kubelet-pods
+              mountPath: /var/lib/kubelet/pods
+              readOnly: true
+            - name: host-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: host-bpf
+              mountPath: /sys/fs/bpf
+            - name: host-debug
+              mountPath: /sys/kernel/debug
+            - name: host-tracing
+              mountPath: /sys/kernel/tracing
+            - name: host-var-log
+              mountPath: /var/log
+              readOnly: true
+            - name: host-run-containerd
+              mountPath: /run/containerd
+              readOnly: true
+            - name: host-containerd
+              mountPath: /var/lib/containerd
+              readOnly: true
+            - name: host-containerd-task
+              mountPath: /run/containerd/io.containerd.runtime.v2.task
+              readOnly: true
+            - name: trace-spool
+              mountPath: {{ .Values.traceSpool.mountPath | quote }}
+      volumes:
+        - name: host-proc
+          hostPath:
+            path: {{ .Values.hostPaths.proc | quote }}
+            type: Directory
+        - name: host-cgroup
+          hostPath:
+            path: {{ .Values.hostPaths.cgroup | quote }}
+            type: Directory
+        - name: kubelet-pods
+          hostPath:
+            path: {{ .Values.hostPaths.kubeletPods | quote }}
+            type: Directory
+        - name: host-modules
+          hostPath:
+            path: {{ .Values.hostPaths.modules | quote }}
+            type: Directory
+        - name: host-bpf
+          hostPath:
+            path: {{ .Values.hostPaths.bpf | quote }}
+            type: DirectoryOrCreate
+        - name: host-debug
+          hostPath:
+            path: {{ .Values.hostPaths.debug | quote }}
+            type: Directory
+        - name: host-tracing
+          hostPath:
+            path: {{ .Values.hostPaths.tracing | quote }}
+            type: Directory
+        - name: host-var-log
+          hostPath:
+            path: {{ .Values.hostPaths.varLog | quote }}
+            type: Directory
+        - name: host-run-containerd
+          hostPath:
+            path: {{ .Values.hostPaths.runContainerd | quote }}
+            type: Directory
+        - name: host-containerd
+          hostPath:
+            path: {{ .Values.hostPaths.containerd | quote }}
+            type: Directory
+        - name: host-containerd-task
+          hostPath:
+            path: {{ .Values.hostPaths.containerdTask | quote }}
+            type: Directory
+        - name: trace-spool
+          emptyDir:
+            sizeLimit: {{ .Values.traceSpool.sizeLimit }}
+{{- end }}

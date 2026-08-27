@@ -1,0 +1,32 @@
+{{- $config := .Values.config | default dict }}
+{{- $configMapName := default (printf "%s-config" (include "Discovery-Agent.fullname" .)) $config.configMapName }}
+{{- $configFileName := default "config.yaml" $config.fileName }}
+{{- $selfUpgrade := .Values.selfUpgrade | default dict }}
+{{- $selfUpgradeEnabled := true }}
+{{- if hasKey $selfUpgrade "enabled" }}
+{{- $selfUpgradeEnabled = $selfUpgrade.enabled }}
+{{- end }}
+{{- $selfUpgradeLock := $selfUpgrade.lock | default dict }}
+{{- $selfUpgradeLockName := default (printf "%s-self-upgrade" (include "Discovery-Agent.fullname" .)) $selfUpgradeLock.name }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "Discovery-Agent.labels" . | nindent 4 }}
+  annotations:
+    {{- include "Discovery-Agent.annotations" . | nindent 4 }}
+data:
+  {{ $configFileName }}: |
+{{ default "log_level: info\nignore_namespaces:\n  - kube-system\nignore_resources:\n  - job/*\n" $config.content | nindent 4 }}
+  self-upgrade.yaml: |
+    enabled: {{ $selfUpgradeEnabled }}
+    pollInterval: {{ default "5m" $selfUpgrade.pollInterval | quote }}
+    chartRef: {{ default "oci://ghcr.io/moonin-labs/moonin-agent" $selfUpgrade.chartRef | quote }}
+    timeout: {{ default "5m" $selfUpgrade.timeout | quote }}
+    lock:
+      name: {{ $selfUpgradeLockName | quote }}
+      namespace: {{ default .Release.Namespace $selfUpgradeLock.namespace | quote }}
+    release:
+      name: {{ .Release.Name | quote }}
+      namespace: {{ .Release.Namespace | quote }}

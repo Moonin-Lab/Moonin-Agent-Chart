@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+{{- $autoscaling := .Values.autoscaling | default dict }}
+{{- $image := .Values.image | default dict }}
+{{- $images := .Values.images | default dict }}
+{{- $discoveryImage := $images.discoveryAgent | default dict }}
+{{- $imageRepository := default (default "nginx" $image.repository) $discoveryImage.repository }}
+{{- $imageTag := default (default .Chart.AppVersion $image.tag) $discoveryImage.tag }}
+{{- $imageDigest := default $image.digest $discoveryImage.digest }}
+{{- $imagePullPolicy := default (default "IfNotPresent" $image.pullPolicy) $discoveryImage.pullPolicy }}
+{{- $env := .Values.env | default dict }}
+{{- $config := .Values.config | default dict }}
+{{- $global := .Values.global | default dict }}
+{{- $credentialsSecretName := default "arguz-credentials" $global.credentialsSecretName }}
+{{- $configMapName := default (printf "%s-config" (include "Discovery-Agent.fullname" .)) $config.configMapName }}
+{{- $configFileName := default "config.yaml" $config.fileName }}
+{{- $configFilePath := default "/config.yaml" $config.filePath }}
+{{- $selfUpgrade := .Values.selfUpgrade | default dict }}
+{{- $selfUpgradeEnabled := true }}
+{{- if hasKey $selfUpgrade "enabled" }}
+{{- $selfUpgradeEnabled = $selfUpgrade.enabled }}
+{{- end }}
+{{- $selfUpgradeLock := $selfUpgrade.lock | default dict }}
+{{- $selfUpgradeRollout := $selfUpgrade.rollout | default dict }}
+{{- $selfUpgradeLockName := default (printf "%s-self-upgrade" (include "Discovery-Agent.fullname" .)) $selfUpgradeLock.name }}
+metadata:
+  name: {{ include "Discovery-Agent.fullname" . }}
+  labels:
+    {{- include "Discovery-Agent.labels" . | nindent 4 }}
+  annotations:
+    {{- include "Discovery-Agent.annotations" . | nindent 4 }}
+spec:
+  {{- if not (default false $autoscaling.enabled) }}
+  replicas: {{ default 1 .Values.replicaCount }}
+  {{- end }}
+  {{- if $selfUpgradeEnabled }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "Discovery-Agent.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- include "Discovery-Agent.annotations" . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- else }}
+      annotations:
+        {{- include "Discovery-Agent.annotations" . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "Discovery-Agent.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if $selfUpgradeEnabled }}
+      terminationGracePeriodSeconds: {{ default 120 $selfUpgradeRollout.terminationGracePeriodSeconds }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "Discovery-Agent.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ include "Discovery-Agent.name" . }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{- if $imageDigest }} "{{ $imageRepository }}@{{ $imageDigest }}" {{- else }} "{{ $imageRepository }}:{{ $imageTag }}" {{- end }}
+          imagePullPolicy: {{ $imagePullPolicy }}
+          {{- if $selfUpgradeEnabled }}
+          lifecycle:
+            preStop:
+              sleep:
+                seconds: {{ default 30 $selfUpgradeRollout.preStopDelaySeconds }}
+          {{- end }}
+          ports:
+            - name: health
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: CONFIG_FILE
+              value: {{ $configFilePath | quote }}
+            - name: PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: PROJECT_ID
+            - name: CLUSTER_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_ID
+            - name: CLUSTER_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $credentialsSecretName }}
+                  key: CLUSTER_TOKEN
+            - name: API_URL
+              value: {{ default "" $env.API_URL | quote }}
+            - name: HEALTH_ADDR
+              value: {{ default "0.0.0.0:8080" $env.HEALTH_ADDR | quote }}
+            - name: SELF_UPGRADE_ENABLED
+              value: {{ $selfUpgradeEnabled | quote }}
+            - name: SELF_UPGRADE_POLL_INTERVAL
+              value: {{ default "5m" $selfUpgrade.pollInterval | quote }}
+            - name: SELF_UPGRADE_CHART_REF
+              value: {{ default "oci://ghcr.io/moonin-labs/moonin-agent" $selfUpgrade.chartRef | quote }}
+            - name: SELF_UPGRADE_TIMEOUT
+              value: {{ default "5m" $selfUpgrade.timeout | quote }}
+            - name: SELF_UPGRADE_LOCK_NAME
+              value: {{ $selfUpgradeLockName | quote }}
+            - name: SELF_UPGRADE_LOCK_NAMESPACE
+              value: {{ default .Release.Namespace $selfUpgradeLock.namespace | quote }}
+            - name: SELF_UPGRADE_CONFIG_FILE
+              value: "/self-upgrade.yaml"
+            - name: SELF_UPGRADE_RELEASE_NAME
+              value: {{ .Release.Name | quote }}
+            - name: SELF_UPGRADE_RELEASE_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: agent-config
+              mountPath: {{ $configFilePath | quote }}
+              subPath: {{ $configFileName | quote }}
+              readOnly: true
+            - name: agent-config
+              mountPath: "/self-upgrade.yaml"
+              subPath: "self-upgrade.yaml"
+              readOnly: true
+          {{- with .Values.volumeMounts }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      volumes:
+        - name: agent-config
+          configMap:
+            name: {{ $configMapName }}
+      {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
