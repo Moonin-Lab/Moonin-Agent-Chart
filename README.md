@@ -15,7 +15,7 @@ The **Moonin Agent** chart deploys the in-cluster agents used by Moonin to colle
 Chart version: 1.1.0
 
 ```bash
-helm repo add moonin-agent https://Moonin-Labs.github.io/Moonin-Agent-Chart
+helm repo add moonin-agent https://Moonin-Lab.github.io/Moonin-Agent-Chart
 helm repo update
 helm upgrade --install moonin-agent moonin-agent/moonin-agent \
   --version 1.1.0 \
