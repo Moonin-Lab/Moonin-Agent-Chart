@@ -2,8 +2,30 @@ apiVersion: v1
 entries:
   moonin-agent:
   - apiVersion: v2
+    appVersion: 1.1.1
+    created: "2026-09-13T23:35:10.395263687Z"
+    dependencies:
+    - name: Moonin-Discovery-Agent
+      repository: file://charts/Moonin-Discovery-Agent
+      version: 1.1.1
+    - condition: Moonin-Scaling-Rules-Agent.enabled
+      name: Moonin-Scaling-Rules-Agent
+      repository: file://charts/Moonin-Scaling-Rules-Agent
+      version: 1.1.1
+    - condition: Moonin-Node-Agent.enabled
+      name: Moonin-Node-Agent
+      repository: file://charts/Moonin-Node-Agent
+      version: 1.1.1
+    description: A Helm chart for Kubernetes
+    digest: 9b3269fc0dd89b6a4c067cd0fc01cbbbca161172c0cbf9c8c51a0cbe3b04204d
+    name: moonin-agent
+    type: application
+    urls:
+    - https://Moonin-Lab.github.io/Moonin-Agent-Chart/moonin-agent-1.1.1.tgz
+    version: 1.1.1
+  - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-09-13T22:08:18.323463034Z"
+    created: "2026-09-13T23:35:10.394048589Z"
     dependencies:
     - name: Moonin-Discovery-Agent
       repository: file://charts/Moonin-Discovery-Agent
@@ -25,7 +47,7 @@ entries:
     version: 1.1.0
   - apiVersion: v2
     appVersion: 1.0.0
-    created: "2026-09-13T22:08:18.322097045Z"
+    created: "2026-09-13T23:35:10.392809136Z"
     dependencies:
     - name: Moonin-Discovery-Agent
       repository: file://charts/Moonin-Discovery-Agent
@@ -45,4 +67,4 @@ entries:
     urls:
     - https://Moonin-Lab.github.io/Moonin-Agent-Chart/moonin-agent-0.0.1.tgz
     version: 0.0.1
-generated: "2026-09-13T22:08:18.320601562Z"
+generated: "2026-09-13T23:35:10.391290593Z"
