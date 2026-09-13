@@ -130,7 +130,7 @@ Discovery-Agent:
   selfUpgrade:
     enabled: false # Explicitly opt out of automatic desired-release installs.
     pollInterval: 5m
-    chartRef: oci://ghcr.io/moonin-labs/moonin-agent
+    chartRef: oci://ghcr.io/moonin-lab/moonin-agent
     timeout: 5m
     lock:
       # Empty values derive a stable name and use the release namespace.
@@ -159,7 +159,7 @@ silently. Bootstrap them once with a self-upgrade-capable chart version and an
 explicit value:
 
 ```bash
-helm upgrade moonin-agent oci://ghcr.io/moonin-labs/moonin-agent \
+helm upgrade moonin-agent oci://ghcr.io/moonin-lab/moonin-agent \
   --namespace moonin-agent \
   --reuse-values \
   --set Discovery-Agent.selfUpgrade.enabled=true

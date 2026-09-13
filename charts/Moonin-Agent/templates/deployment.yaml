@@ -117,7 +117,7 @@ spec:
             - name: SELF_UPGRADE_POLL_INTERVAL
               value: {{ default "5m" $selfUpgrade.pollInterval | quote }}
             - name: SELF_UPGRADE_CHART_REF
-              value: {{ default "oci://ghcr.io/moonin-labs/moonin-agent" $selfUpgrade.chartRef | quote }}
+              value: {{ default "oci://ghcr.io/moonin-lab/moonin-agent" $selfUpgrade.chartRef | quote }}
             - name: SELF_UPGRADE_TIMEOUT
               value: {{ default "5m" $selfUpgrade.timeout | quote }}
             - name: SELF_UPGRADE_LOCK_NAME

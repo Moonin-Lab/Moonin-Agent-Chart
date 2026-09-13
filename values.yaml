@@ -12,7 +12,7 @@ Moonin-Discovery-Agent:
   image:
     repository: ghcr.io/moonin-lab/moonin-discovery-agent
     pullPolicy: IfNotPresent
-    tag: "v1.0.0"
+    tag: "v1.1.1"
     # digest: "sha256:..." # When set, renders repository@digest and takes precedence over tag.
 
   imagePullSecrets: []
@@ -130,7 +130,7 @@ Moonin-Scaling-Rules-Agent:
   image:
     repository: ghcr.io/moonin-lab/moonin-scaling-rules-agent
     pullPolicy: IfNotPresent
-    tag: "v1.0.0"
+    tag: "v1.1.1"
 
   imagePullSecrets: []
   nameOverride: ""
@@ -175,7 +175,7 @@ Moonin-Node-Agent:
   image:
     repository: ghcr.io/moonin-lab/moonin-node-agent
     pullPolicy: IfNotPresent
-    tag: "v1.0.0"
+    tag: "v1.1.1"
     # digest: "sha256:..."
   imagePullSecrets: []
 

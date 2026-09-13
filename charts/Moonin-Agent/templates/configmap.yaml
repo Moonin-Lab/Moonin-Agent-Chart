@@ -22,7 +22,7 @@ data:
   self-upgrade.yaml: |
     enabled: {{ $selfUpgradeEnabled }}
     pollInterval: {{ default "5m" $selfUpgrade.pollInterval | quote }}
-    chartRef: {{ default "oci://ghcr.io/moonin-labs/moonin-agent" $selfUpgrade.chartRef | quote }}
+    chartRef: {{ default "oci://ghcr.io/moonin-lab/moonin-agent" $selfUpgrade.chartRef | quote }}
     timeout: {{ default "5m" $selfUpgrade.timeout | quote }}
     lock:
       name: {{ $selfUpgradeLockName | quote }}
