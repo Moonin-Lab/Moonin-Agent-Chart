@@ -3,7 +3,7 @@ enabled: true
 image:
   repository: ghcr.io/moonin-labs/moonin-node-agent
   pullPolicy: IfNotPresent
-  tag: "v1.1.4"
+  tag: "v1.1.7"
   digest: ""
 imagePullSecrets: []
 

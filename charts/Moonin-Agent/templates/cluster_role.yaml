@@ -124,7 +124,7 @@ roleRef:
 {{- $selfUpgradeEnabled = $selfUpgrade.enabled }}
 {{- end }}
 {{- if $selfUpgradeEnabled }}
-{{- $scalingRulesName := printf "%s-scaling-rules-agent" (.Release.Name | lower) | trunc 63 | trimSuffix "-" }}
+{{- $scalingRulesName := printf "%s-moonin-scaling-rules-agent" (.Release.Name | lower) | trunc 63 | trimSuffix "-" }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
