@@ -12,13 +12,13 @@ The **Moonin Agent** chart deploys the in-cluster agents used by Moonin to colle
 
 ### Install from Helm repo (GitHub Pages)
 
-Chart version: 1.1.4
+Chart version: 1.1.7
 
 ```bash
 helm repo add moonin-agent https://Moonin-Lab.github.io/Moonin-Agent-Chart
 helm repo update
 helm upgrade --install moonin-agent moonin-agent/moonin-agent \
-  --version 1.1.4 \
+  --version 1.1.7 \
   -n moonin-agent \
   --create-namespace
 ```
