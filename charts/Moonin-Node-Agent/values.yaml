@@ -14,7 +14,7 @@ serviceAccount:
   name: ""
 
 api:
-  baseURL: "https://ingestion-api.moonin.app/"
+  baseURL: "https://api-ingestion.moonin.app/"
 
 daemonset:
   maxUnavailable: 1

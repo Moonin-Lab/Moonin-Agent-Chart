@@ -47,7 +47,7 @@ Moonin-Discovery-Agent:
       memory: 128Mi
 
   env:
-    API_URL: "https://api-discover.moonin.app"
+    API_URL: "https://api-discovery.moonin.app"
     HEALTH_ADDR: "0.0.0.0:8080"
 
   # Discovery-Agent upgrades this Helm release through the Helm SDK by default.
@@ -186,7 +186,7 @@ Moonin-Node-Agent:
     name: ""
 
   api:
-    baseURL: "https://ingestion-api.moonin.app/"
+    baseURL: "https://api-ingestion.moonin.app/"
 
   daemonset:
     maxUnavailable: 1
