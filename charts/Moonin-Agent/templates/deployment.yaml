@@ -11,6 +11,7 @@ kind: Deployment
 {{- $env := .Values.env | default dict }}
 {{- $config := .Values.config | default dict }}
 {{- $global := .Values.global | default dict }}
+{{- $endpoints := $global.endpoints | default dict }}
 {{- $credentialsSecretName := default "arguz-credentials" $global.credentialsSecretName }}
 {{- $configMapName := default (printf "%s-config" (include "Discovery-Agent.fullname" .)) $config.configMapName }}
 {{- $configFileName := default "config.yaml" $config.fileName }}
@@ -109,7 +110,7 @@ spec:
                   name: {{ $credentialsSecretName }}
                   key: CLUSTER_TOKEN
             - name: API_URL
-              value: {{ default "" $env.API_URL | quote }}
+              value: {{ default (default "" $env.API_URL) $endpoints.discoveryApiUrl | quote }}
             - name: HEALTH_ADDR
               value: {{ default "0.0.0.0:8080" $env.HEALTH_ADDR | quote }}
             - name: SELF_UPGRADE_ENABLED

@@ -1,5 +1,6 @@
 {{- if .Values.enabled }}
 {{- $global := .Values.global | default dict }}
+{{- $endpoints := $global.endpoints | default dict }}
 {{- $credentialsSecretName := default "arguz-credentials" $global.credentialsSecretName }}
 apiVersion: apps/v1
 kind: DaemonSet
@@ -98,7 +99,7 @@ spec:
               type: Unconfined
           env:
             - name: API_BASE_URL
-              value: {{ .Values.api.baseURL | quote }}
+              value: {{ default .Values.api.baseURL $endpoints.ingestionApiUrl | quote }}
             - name: CLUSTER_ID
               valueFrom:
                 secretKeyRef:

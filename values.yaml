@@ -6,6 +6,12 @@ global:
     projectId: "<your-project-id>"
     clusterId: "<your-cluster-id>"
     clusterToken: "<your-cluster-token>"
+  # Shared Moonin control-plane endpoints. Set these values during installation
+  # instead of overriding settings inside individual agent subcharts.
+  # Empty values preserve the component-specific defaults below.
+  endpoints:
+    discoveryApiUrl: ""
+    ingestionApiUrl: ""
 
 Moonin-Discovery-Agent:
   replicaCount: 2
