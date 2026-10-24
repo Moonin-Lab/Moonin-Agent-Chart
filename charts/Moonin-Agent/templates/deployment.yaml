@@ -1,6 +1,5 @@
 apiVersion: apps/v1
 kind: Deployment
-{{- $autoscaling := .Values.autoscaling | default dict }}
 {{- $image := .Values.image | default dict }}
 {{- $images := .Values.images | default dict }}
 {{- $discoveryImage := $images.discoveryAgent | default dict }}
@@ -31,9 +30,7 @@ metadata:
   annotations:
     {{- include "Discovery-Agent.annotations" . | nindent 4 }}
 spec:
-  {{- if not (default false $autoscaling.enabled) }}
   replicas: {{ default 1 .Values.replicaCount }}
-  {{- end }}
   {{- if $selfUpgradeEnabled }}
   strategy:
     type: RollingUpdate
